@@ -52,5 +52,6 @@ jobs:
             publish/Kmz2Mbtiles.exe
             publish/Kmz2Mbtiles.bat
             publish/compare_mbtiles.py
+            publish/compare_mbtiles.bat
             publish/e_sqlite3.dll
           if-no-files-found: error

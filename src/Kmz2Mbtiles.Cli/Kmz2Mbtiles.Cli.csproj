@@ -27,12 +27,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Kmz2Mbtiles.bat">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-		</None>
-		<None Update="compare_mbtiles.py">
+		<None Update="Kmz2Mbtiles.bat;compare_mbtiles.py;compare_mbtiles.bat">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>

@@ -52,10 +52,13 @@ Results are written next to the input KMZ:
 ## Verification
 
 `compare_mbtiles.py` compares two MBTiles files by the SHA-256 hashes of their
-tiles and reports any difference, per zoom level:
+tiles and reports any difference, per zoom level.
+
+Drag and drop two `.mbtiles` files onto `compare_mbtiles.bat`, or run from a
+console:
 
 ```
-python compare_mbtiles.py reference.mbtiles output.mbtiles
+compare_mbtiles.bat reference.mbtiles output.mbtiles
 ```
 
 The script requires Python 3 and is intended as a manual verification tool,
@@ -72,13 +75,14 @@ Deviations from this structure are treated as errors.
 
 ## Published files
 
-A release publish produces four files:
+A release publish produces five files:
 
 ```
-Kmz2Mbtiles.exe       — self-contained executable (Windows x64)
-Kmz2Mbtiles.bat       — drag-and-drop launcher
-compare_mbtiles.py    — MBTiles verification script
-e_sqlite3.dll         — native SQLite library (required at runtime)
+Kmz2Mbtiles.exe     — self-contained executable (Windows x64)
+Kmz2Mbtiles.bat     — drag-and-drop launcher for conversion
+compare_mbtiles.py  — MBTiles verification script
+compare_mbtiles.bat — drag-and-drop launcher for comparison
+e_sqlite3.dll       — native SQLite library (required at runtime)
 ```
 
 ## Project structure
