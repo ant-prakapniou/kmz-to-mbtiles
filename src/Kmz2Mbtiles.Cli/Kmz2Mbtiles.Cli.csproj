@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+	<AssemblyName>Kmz2Mbtiles</AssemblyName>
     <OutputType>Exe</OutputType>
     <TargetFramework>net11.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,5 +17,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Kmz2Mbtiles.Core\Kmz2Mbtiles.Core.csproj" />
   </ItemGroup>
+
+<ItemGroup>
+	<None Update="Kmz2Mbtiles.bat">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+</ItemGroup>
 
 </Project>

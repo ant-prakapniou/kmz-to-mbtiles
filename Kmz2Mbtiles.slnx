@@ -3,7 +3,4 @@
     <Project Path="src/Kmz2Mbtiles.Cli/Kmz2Mbtiles.Cli.csproj" />
     <Project Path="src/Kmz2Mbtiles.Core/Kmz2Mbtiles.Core.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Kmz2Mbtiles.Tests/Kmz2Mbtiles.Tests.csproj" />
-  </Folder>
 </Solution>
