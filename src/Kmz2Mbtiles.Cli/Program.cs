@@ -5,7 +5,10 @@ using Kmz2Mbtiles.Core.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using SQLitePCL;
 
+// Initialize SQLitePCL before any SQLite call (required by Microsoft.Data.Sqlite.Core).
 Batteries_V2.Init();
+
+// Code page 437 is required by ZipHelper for reading KMZ entry names written by Google Earth.
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = Encoding.UTF8;
 

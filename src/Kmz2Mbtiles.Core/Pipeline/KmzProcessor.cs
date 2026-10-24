@@ -8,17 +8,46 @@ using Kmz2Mbtiles.Core.Naming;
 
 namespace Kmz2Mbtiles.Core.Pipeline;
 
-public sealed class KmzProcessor
+/// <summary>
+/// Orchestrates the full KMZ-to-MBTiles conversion pipeline for a single input file.
+/// </summary>
+/// <param name="gdal">Runner used to invoke GDAL command-line tools.</param>
+/// <param name="reporter">Progress reporter used to surface pipeline status and results.</param>
+/// <remarks>
+/// The pipeline performs the following stages:
+/// <list type="number">
+///   <item><description>Extract the KMZ archive into a temporary directory.</description></item>
+///   <item><description>Derive a normalized master name from the embedded JPG.</description></item>
+///   <item><description>Patch the KML <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c> and write a normalized KMZ.</description></item>
+///   <item><description>Create a GCP-tagged TIFF in EPSG:4326.</description></item>
+///   <item><description>Reproject to EPSG:3857 and convert to MBTiles with overviews.</description></item>
+/// </list>
+/// Output is written next to the input KMZ, under <c>normalized</c> and <c>mbtiles</c>
+/// subdirectories of <c>baseDir</c>.
+/// </remarks>
+public sealed class KmzProcessor(IGdalRunner gdal, IProgressReporter reporter)
 {
-    private readonly IGdalRunner _gdal;
-    private readonly IProgressReporter _reporter;
+    private readonly IGdalRunner _gdal = gdal;
+    private readonly IProgressReporter _reporter = reporter;
 
-    public KmzProcessor(IGdalRunner gdal, IProgressReporter reporter)
-    {
-        _gdal = gdal;
-        _reporter = reporter;
-    }
-
+    /// <summary>
+    /// Processes a single KMZ file and produces the corresponding MBTiles output.
+    /// </summary>
+    /// <param name="kmzPath">Path to the input KMZ file. Converted to an absolute path internally.</param>
+    /// <param name="baseDir">
+    /// Directory under which <c>normalized</c> and <c>mbtiles</c> subdirectories are created.
+    /// Typically the directory containing the input KMZ.
+    /// </param>
+    /// <returns>
+    /// A <see cref="ProcessResult"/> describing the outcome. On success, output paths and
+    /// metrics are populated. On failure, <see cref="ProcessResult.ErrorMessage"/> contains
+    /// the reason.
+    /// </returns>
+    /// <remarks>
+    /// The method never throws for expected failures such as a missing input file or a
+    /// malformed KMZ. All such cases are reported through the returned result and the
+    /// progress reporter. The temporary working directory is always removed, even on failure.
+    /// </remarks>
     public ProcessResult Process(string kmzPath, string baseDir)
     {
         kmzPath = Path.GetFullPath(kmzPath);
@@ -97,6 +126,8 @@ public sealed class KmzProcessor
             var (W, H) = _gdal.GetJpgSize(jpg);
             var corners = KmlHelper.ParseLatLonQuad(kmlPath);
 
+            // Corner order in the KML document is south-west, south-east, north-east, north-west.
+            // GCPs are assigned clockwise starting from the top-left pixel of the raster.
             var gcp = new (int px, int py, double lon, double lat)[]
             {
                 (0, 0, corners[3].Lon, corners[3].Lat),
@@ -156,7 +187,7 @@ public sealed class KmzProcessor
             }
             catch
             {
-                // если не удалось прочитать статистику — не критично
+                // Reading statistics is optional; failure must not fail the conversion.
             }
 
             _reporter.Success(Path.GetFileName(outMbtiles));
@@ -199,6 +230,14 @@ public sealed class KmzProcessor
         }
     }
 
+    /// <summary>
+    /// Formats a duration for display in the pipeline summary.
+    /// </summary>
+    /// <param name="t">Duration to format.</param>
+    /// <returns>
+    /// A string in the form <c>N min M sec</c> when the duration is at least one minute,
+    /// otherwise <c>X.Y sec</c>.
+    /// </returns>
     private static string FormatElapsed(TimeSpan t)
     {
         if (t.TotalMinutes >= 1)

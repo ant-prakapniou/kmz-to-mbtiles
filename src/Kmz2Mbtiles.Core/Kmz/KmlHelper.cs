@@ -1,17 +1,34 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Kmz2Mbtiles.Core.Kmz;
 
+/// <summary>
+/// Reads and patches KML documents embedded in KMZ archives.
+/// </summary>
 public static class KmlHelper
 {
-    private static readonly XNamespace KmlNs = "http://www.opengis.net/kml/2.2";
     private static readonly XNamespace GxNs = "http://www.google.com/kml/ext/2.2";
 
     /// <summary>
-    /// Парсит 4 угла из &lt;gx:LatLonQuad&gt;.
-    /// Возвращает массив 4 кортежей (lon, lat) в порядке KML: ЮЗ, ЮВ, СВ, СЗ.
+    /// Parses the four corner coordinates from a <c>&lt;gx:LatLonQuad&gt;</c> element.
     /// </summary>
+    /// <param name="kmlPath">Path to the KML file to read.</param>
+    /// <returns>
+    /// An array of four <c>(Lon, Lat)</c> tuples in the order they appear in the KML document,
+    /// which is south-west, south-east, north-east, north-west.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no <c>&lt;gx:LatLonQuad&gt;</c> element is present, or when the number of
+    /// parsed coordinates is not exactly four.
+    /// </exception>
+    /// <remarks>
+    /// The order of the returned corners matches the Google Earth convention and is relied upon
+    /// by the pipeline when assigning ground control points to the raster. Changing this order
+    /// would flip or rotate the resulting image on the map.
+    /// </remarks>
     public static (double Lon, double Lat)[] ParseLatLonQuad(string kmlPath)
     {
         var doc = XDocument.Load(kmlPath);
@@ -20,10 +37,10 @@ public static class KmlHelper
                         .FirstOrDefault(e => e.Name.LocalName == "coordinates");
 
         if (coords == null)
-            throw new InvalidOperationException("не найден <gx:LatLonQuad> в doc.kml");
+            throw new InvalidOperationException("no <gx:LatLonQuad> element found in doc.kml");
 
         var tokens = coords.Value
-            .Split(new[] { ' ', '\t', '\n', '\r' },
+            .Split([' ', '\t', '\n', '\r'],
                    StringSplitOptions.RemoveEmptyEntries);
 
         var result = new List<(double, double)>();
@@ -32,25 +49,32 @@ public static class KmlHelper
             var parts = token.Split(',');
             if (parts.Length < 2)
                 continue;
-            var lon = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
-            var lat = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+            var lon = double.Parse(parts[0], CultureInfo.InvariantCulture);
+            var lat = double.Parse(parts[1], CultureInfo.InvariantCulture);
             result.Add((lon, lat));
         }
 
         if (result.Count != 4)
             throw new InvalidOperationException(
-                $"ожидалось 4 угла в LatLonQuad, найдено {result.Count}");
+                $"expected 4 corners in LatLonQuad, found {result.Count}");
 
-        return result.ToArray();
+        return [.. result];
     }
 
     /// <summary>
-    /// Подменяет содержимое первого &lt;name&gt; и первого &lt;href&gt;.
-    /// Сохраняет форматирование (UTF-8 без BOM), чтобы не сломать исходный файл.
+    /// Replaces the content of the first <c>&lt;name&gt;</c> and the first <c>&lt;href&gt;</c>
+    /// elements with values derived from the given master name.
     /// </summary>
+    /// <param name="kmlPath">Path to the KML file to patch in place.</param>
+    /// <param name="master">Normalized master name to write into <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c>.</param>
+    /// <remarks>
+    /// The document is written back as UTF-8 without a byte order mark. This preserves the
+    /// original file layout and avoids introducing a BOM that some consumers of the KMZ
+    /// archive treat as part of the content.
+    /// </remarks>
     public static void PatchNameAndHref(string kmlPath, string master)
     {
-        var text = File.ReadAllText(kmlPath, System.Text.Encoding.UTF8);
+        var text = File.ReadAllText(kmlPath, Encoding.UTF8);
 
         text = Regex.Replace(
             text,
@@ -59,13 +83,23 @@ public static class KmlHelper
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
-        // Regex.Replace с count не поддерживается напрямую, делаем через Match
+        // Regex.Replace does not support limiting the number of replacements,
+        // so the first <name> and <href> are replaced manually below.
         text = ReplaceFirst(text, @"(?s)<name>.*?</name>", $"<name>{master}</name>");
         text = ReplaceFirst(text, @"(?s)<href>.*?</href>", $"<href>files/{master}.jpg</href>");
 
-        File.WriteAllText(kmlPath, text, new System.Text.UTF8Encoding(false));
+        File.WriteAllText(kmlPath, text, new UTF8Encoding(false));
     }
 
+    /// <summary>
+    /// Replaces the first occurrence of <paramref name="pattern"/> in <paramref name="input"/>.
+    /// </summary>
+    /// <param name="input">Source string.</param>
+    /// <param name="pattern">Regular expression pattern to search for.</param>
+    /// <param name="replacement">Replacement string.</param>
+    /// <returns>
+    /// The input string with the first match replaced, or the original string if no match is found.
+    /// </returns>
     private static string ReplaceFirst(string input, string pattern, string replacement)
     {
         var match = Regex.Match(input, pattern);

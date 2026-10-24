@@ -6,15 +6,24 @@ using Kmz2Mbtiles.Core.Abstractions;
 
 namespace Kmz2Mbtiles.Core.Geo;
 
+/// <summary>
+/// Default <see cref="IGdalRunner"/> implementation that invokes GDAL command-line tools
+/// as child processes and reports their outcome through an <see cref="IProgressReporter"/>.
+/// </summary>
+/// <param name="reporter">Progress reporter used to surface command execution status.</param>
+/// <remarks>
+/// GDAL executables (<c>gdal_translate</c>, <c>gdalwarp</c>, <c>gdaladdo</c>, <c>gdalinfo</c>)
+/// are expected to be available on the system <c>PATH</c>. No executable discovery is performed.
+/// </remarks>
 public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
 {
     private readonly IProgressReporter _reporter = reporter;
 
-    /// <summary>
-    /// Запускает GDAL-команду.
-    /// При успехе: тихая строка "> label" + "[OK]", stderr скрыт.
-    /// При ошибке: полная команда + полный stderr.
-    /// </summary>
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Standard output is consumed but discarded. Standard error is captured and, on failure,
+    /// forwarded to the reporter line by line so the caller can diagnose the problem.
+    /// </remarks>
     public bool Run(string exe, string label, params string[] args)
     {
         var psi = new ProcessStartInfo
@@ -66,6 +75,12 @@ public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
         return false;
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The image dimensions are extracted from the <c>Size is W, H</c> line printed by
+    /// <c>gdalinfo</c>. If that line is missing, the method throws rather than returning
+    /// a sentinel value, because a missing size indicates a corrupted or unsupported input.
+    /// </remarks>
     public (int W, int H) GetJpgSize(string jpgPath)
     {
         var psi = new ProcessStartInfo
@@ -84,7 +99,7 @@ public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
 
         var m = Regex.Match(output, @"Size is (\d+),\s*(\d+)");
         if (!m.Success)
-            throw new InvalidOperationException("не удалось определить размер jpg");
+            throw new InvalidOperationException("failed to determine jpg size");
 
         return (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
                 int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture));

@@ -2,8 +2,25 @@
 
 namespace Kmz2Mbtiles.Core.Mbtiles;
 
+/// <summary>
+/// Reads summary information from MBTiles files.
+/// </summary>
 public static class MbtilesInfo
 {
+    /// <summary>
+    /// Reads tile count and zoom level range from the <c>tiles</c> table of an MBTiles file.
+    /// </summary>
+    /// <param name="mbtilesPath">Path to the MBTiles file to inspect.</param>
+    /// <returns>
+    /// A tuple containing the total number of tiles, the minimum zoom level and the maximum
+    /// zoom level present in the file. If the <c>tiles</c> table is empty, all values are 0.
+    /// </returns>
+    /// <remarks>
+    /// The database is opened in read-only mode. Missing zoom values are reported as 0 rather
+    /// than causing an exception. Callers are expected to treat a count of 0 as "statistics
+    /// unavailable" and continue; failure to read statistics is not considered fatal for
+    /// the conversion pipeline.
+    /// </remarks>
     public static (long Count, int MinZoom, int MaxZoom) GetStats(string mbtilesPath)
     {
         var connStr = new SqliteConnectionStringBuilder
