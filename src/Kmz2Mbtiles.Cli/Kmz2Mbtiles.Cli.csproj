@@ -23,6 +23,9 @@
 	<None Update="Kmz2Mbtiles.bat">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
+	<None Update="compare_mbtiles.py">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
 </ItemGroup>
 
 </Project>
