@@ -4,7 +4,8 @@
 		<TargetFramework>net11.0-windows</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<DebugType>none</DebugType>
 	</PropertyGroup>
 
 	<ItemGroup>
