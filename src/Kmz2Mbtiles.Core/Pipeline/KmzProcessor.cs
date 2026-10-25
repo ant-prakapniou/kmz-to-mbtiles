@@ -18,7 +18,7 @@ namespace Kmz2Mbtiles.Core.Pipeline;
 /// <list type="number">
 ///   <item><description>Extract the KMZ archive into a temporary directory.</description></item>
 ///   <item><description>Derive a normalized master name from the embedded JPG.</description></item>
-///   <item><description>Patch the KML <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c> and write a normalized KMZ.</description></item>
+///   <item><description>Patch the KML <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c>, rename the embedded JPG to the normalized master name, and write a normalized KMZ.</description></item>
 ///   <item><description>Create a GCP-tagged TIFF in EPSG:4326.</description></item>
 ///   <item><description>Reproject to EPSG:3857 and convert to MBTiles with overviews.</description></item>
 /// </list>
@@ -107,6 +107,25 @@ public sealed class KmzProcessor(IGdalRunner gdal, IProgressReporter reporter)
                 throw new InvalidOperationException("no doc.kml");
 
             KmlHelper.PatchNameAndHref(kmlPath, master);
+
+            // Keep the JPG file name in sync with the normalized master name that was
+            // written into the KML <name>/<href> and into the output KMZ file name.
+            var newJpgPath = Path.Combine(filesDir, master + Path.GetExtension(jpg));
+            if (!string.Equals(jpg, newJpgPath, StringComparison.Ordinal))
+            {
+                if (string.Equals(jpg, newJpgPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Case-only rename on a case-insensitive file system: go through a temp name.
+                    var tmpName = jpg + ".renaming";
+                    File.Move(jpg, tmpName);
+                    File.Move(tmpName, newJpgPath);
+                }
+                else
+                {
+                    File.Move(jpg, newJpgPath);
+                }
+                jpg = newJpgPath;
+            }
 
             var kmzBase = Path.GetFileNameWithoutExtension(kmzPath);
             string? normalizedKmzPath = null;
