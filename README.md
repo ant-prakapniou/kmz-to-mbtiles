@@ -75,7 +75,8 @@ Deviations from this structure are treated as errors.
 
 ## Published files
 
-A release publish produces five files:
+A release publish produces a single zip archive
+(`Kmz2Mbtiles-<version>-win-x64.zip`) containing five files:
 
 ```
 Kmz2Mbtiles.exe     — self-contained executable (Windows x64)
