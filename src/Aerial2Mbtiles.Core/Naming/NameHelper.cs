@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using NickBuhro.Translit;
 
-namespace Kmz2Mbtiles.Core.Naming;
+namespace Aerial2Mbtiles.Core.Naming;
 
 /// <summary>
 /// Produces safe, normalized file names from raw master names taken from archived

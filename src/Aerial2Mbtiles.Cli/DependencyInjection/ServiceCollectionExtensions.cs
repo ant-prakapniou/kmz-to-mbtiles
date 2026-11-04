@@ -1,7 +1,9 @@
-﻿using Kmz2Mbtiles.Core.Abstractions;
+﻿using Aerial2Mbtiles.Cli;
+using Aerial2Mbtiles.Core.Abstractions;
+using Kmz2Mbtiles.Cli;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kmz2Mbtiles.Cli.DependencyInjection;
+namespace Aerial2Mbtiles.Cli.DependencyInjection;
 
 /// <summary>
 /// Registers CLI services (progress reporter and application entry point) into a dependency
@@ -24,7 +26,7 @@ public static class ServiceCollectionExtensions
     /// registrations depend on an <see cref="IProgressReporter"/> implementation being
     /// available at resolution time.
     /// </remarks>
-    public static IServiceCollection AddKmz2MbtilesCli(this IServiceCollection services)
+    public static IServiceCollection AddAerial2MbtilesCli(this IServiceCollection services)
     {
         services.AddSingleton<IProgressReporter, SpectreProgressReporter>();
         services.AddSingleton<CliApp>();

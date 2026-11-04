@@ -1,4 +1,4 @@
-﻿namespace Kmz2Mbtiles.Core.Abstractions;
+﻿namespace Aerial2Mbtiles.Core.Abstractions;
 
 /// <summary>
 /// Abstraction over the GDAL command-line tools used by the conversion pipeline.

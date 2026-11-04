@@ -23,7 +23,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Kmz2Mbtiles.Core\Kmz2Mbtiles.Core.csproj" />
+		<ProjectReference Include="..\Aerial2Mbtiles.Core\Aerial2Mbtiles.Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

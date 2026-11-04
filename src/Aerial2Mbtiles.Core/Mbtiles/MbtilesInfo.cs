@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 
-namespace Kmz2Mbtiles.Core.Mbtiles;
+namespace Aerial2Mbtiles.Core.Mbtiles;
 
 /// <summary>
 /// Reads summary information from MBTiles files.

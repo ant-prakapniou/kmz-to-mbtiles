@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Aerial2Mbtiles.Cli/Aerial2Mbtiles.Cli.csproj" />
+    <Project Path="src/Aerial2Mbtiles.Core/Aerial2Mbtiles.Core.csproj" />
+  </Folder>
+</Solution>

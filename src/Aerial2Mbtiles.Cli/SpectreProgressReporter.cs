@@ -1,7 +1,7 @@
-﻿using Kmz2Mbtiles.Core.Abstractions;
+﻿using Aerial2Mbtiles.Core.Abstractions;
 using Spectre.Console;
 
-namespace Kmz2Mbtiles.Cli;
+namespace Aerial2Mbtiles.Cli;
 
 /// <summary>
 /// <see cref="IProgressReporter"/> implementation that renders pipeline output using

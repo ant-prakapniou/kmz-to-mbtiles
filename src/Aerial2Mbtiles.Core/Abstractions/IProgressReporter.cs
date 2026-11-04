@@ -1,4 +1,4 @@
-﻿namespace Kmz2Mbtiles.Core.Abstractions;
+﻿namespace Aerial2Mbtiles.Core.Abstractions;
 
 /// <summary>
 /// Abstraction over user-facing progress output produced by the conversion pipeline.

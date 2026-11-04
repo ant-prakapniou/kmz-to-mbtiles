@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace Kmz2Mbtiles.Core.Kmz;
+namespace Aerial2Mbtiles.Core.Kmz;
 
 /// <summary>
 /// Reads and patches KML documents embedded in KMZ archives.

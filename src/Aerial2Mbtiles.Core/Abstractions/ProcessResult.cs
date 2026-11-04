@@ -1,4 +1,4 @@
-﻿namespace Kmz2Mbtiles.Core.Abstractions;
+﻿namespace Aerial2Mbtiles.Core.Abstractions;
 
 /// <summary>
 /// Result of processing a single KMZ file through the conversion pipeline.

@@ -2,9 +2,9 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using Kmz2Mbtiles.Core.Abstractions;
+using Aerial2Mbtiles.Core.Abstractions;
 
-namespace Kmz2Mbtiles.Core.Geo;
+namespace Aerial2Mbtiles.Core.Geo;
 
 /// <summary>
 /// Default <see cref="IGdalRunner"/> implementation that invokes GDAL command-line tools

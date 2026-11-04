@@ -1,12 +1,11 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
-using Kmz2Mbtiles.Core.Abstractions;
-using Kmz2Mbtiles.Core.Geo;
-using Kmz2Mbtiles.Core.Kmz;
-using Kmz2Mbtiles.Core.Mbtiles;
-using Kmz2Mbtiles.Core.Naming;
+using Aerial2Mbtiles.Core.Abstractions;
+using Aerial2Mbtiles.Core.Kmz;
+using Aerial2Mbtiles.Core.Mbtiles;
+using Aerial2Mbtiles.Core.Naming;
 
-namespace Kmz2Mbtiles.Core.Pipeline;
+namespace Aerial2Mbtiles.Core.Pipeline;
 
 /// <summary>
 /// Orchestrates the full KMZ-to-MBTiles conversion pipeline for a single input file.
@@ -25,7 +24,7 @@ namespace Kmz2Mbtiles.Core.Pipeline;
 /// Output is written next to the input KMZ, under <c>normalized</c> and <c>mbtiles</c>
 /// subdirectories of <c>baseDir</c>.
 /// </remarks>
-public sealed class KmzProcessor(IGdalRunner gdal, IProgressReporter reporter)
+public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter)
 {
     private readonly IGdalRunner _gdal = gdal;
     private readonly IProgressReporter _reporter = reporter;

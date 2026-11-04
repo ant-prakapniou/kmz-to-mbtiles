@@ -3,7 +3,7 @@ using SharpCompress.Common;
 using SharpCompress.Writers;
 using ZipArchive = SharpCompress.Archives.Zip.ZipArchive;
 
-namespace Kmz2Mbtiles.Core.Kmz;
+namespace Aerial2Mbtiles.Core.Kmz;
 
 /// <summary>
 /// Creates and extracts KMZ archives, which are ZIP containers holding a KML document

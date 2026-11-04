@@ -1,4 +1,4 @@
-﻿using Kmz2Mbtiles.Core.Pipeline;
+﻿using Aerial2Mbtiles.Core.Pipeline;
 
 namespace Kmz2Mbtiles.Cli;
 
@@ -12,9 +12,9 @@ namespace Kmz2Mbtiles.Cli;
 /// <c>normalized</c> and <c>mbtiles</c> subdirectories. The exit code reflects whether
 /// every input was processed successfully.
 /// </remarks>
-public sealed class CliApp(KmzProcessor processor)
+public sealed class CliApp(AerialProcessor processor)
 {
-    private readonly KmzProcessor _processor = processor;
+    private readonly AerialProcessor _processor = processor;
 
     /// <summary>
     /// Runs the application for the given command-line arguments.
