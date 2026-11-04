@@ -1,6 +1,5 @@
 ﻿using Aerial2Mbtiles.Cli;
 using Aerial2Mbtiles.Core.Abstractions;
-using Kmz2Mbtiles.Cli;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aerial2Mbtiles.Cli.DependencyInjection;
@@ -22,7 +21,7 @@ public static class ServiceCollectionExtensions
     ///   <item><description><see cref="IProgressReporter"/> as a singleton backed by <see cref="SpectreProgressReporter"/>.</description></item>
     ///   <item><description><see cref="CliApp"/> as a singleton entry point.</description></item>
     /// </list>
-    /// This method must be called in addition to <c>AddKmz2MbtilesCore</c>; the Core
+    /// This method must be called in addition to <c>AddAerial2MbtilesCore</c>; the Core
     /// registrations depend on an <see cref="IProgressReporter"/> implementation being
     /// available at resolution time.
     /// </remarks>

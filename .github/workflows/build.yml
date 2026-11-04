@@ -39,7 +39,7 @@ jobs:
 
       - name: Publish single-file exe
         run: |
-          dotnet publish src/Kmz2Mbtiles.Cli/Kmz2Mbtiles.Cli.csproj `
+          dotnet publish src/Aerial2Mbtiles.Cli/Aerial2Mbtiles.Cli.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
@@ -51,10 +51,10 @@ jobs:
       - name: Upload CI artifact
         uses: actions/upload-artifact@v6
         with:
-          name: Kmz2Mbtiles-win-x64
+          name: Aerial2Mbtiles-win-x64
           path: |
-            publish/Kmz2Mbtiles.exe
-            publish/Kmz2Mbtiles.bat
+            publish/Aerial2Mbtiles.exe
+            publish/Aerial2Mbtiles.bat
             publish/compare_mbtiles.py
             publish/compare_mbtiles.bat
             publish/e_sqlite3.dll
@@ -65,17 +65,17 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          $dir = "publish\Kmz2Mbtiles-$version-win-x64"
+          $dir = "publish\Aerial2Mbtiles-$version-win-x64"
           New-Item -ItemType Directory -Path $dir | Out-Null
-          Copy-Item publish\Kmz2Mbtiles.exe $dir
-          Copy-Item publish\Kmz2Mbtiles.bat $dir
+          Copy-Item publish\Aerial2Mbtiles.exe $dir
+          Copy-Item publish\Aerial2Mbtiles.bat $dir
           Copy-Item publish\compare_mbtiles.py $dir
           Copy-Item publish\compare_mbtiles.bat $dir
           Copy-Item publish\e_sqlite3.dll $dir
-          Compress-Archive -Path "$dir\*" -DestinationPath "publish\Kmz2Mbtiles-$version-win-x64.zip"
+          Compress-Archive -Path "$dir\*" -DestinationPath "publish\Aerial2Mbtiles-$version-win-x64.zip"
 
       - name: Create release and upload asset
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: publish/Kmz2Mbtiles-*-win-x64.zip
+          files: publish/Aerial2Mbtiles-*-win-x64.zip

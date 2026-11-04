@@ -27,10 +27,10 @@ public interface IGdalRunner
     /// <summary>
     /// Reads the pixel dimensions of a raster image using <c>gdalinfo</c>.
     /// </summary>
-    /// <param name="jpgPath">Path to the raster file to inspect.</param>
+    /// <param name="rasterPath">Path to the raster file to inspect.</param>
     /// <returns>A tuple containing the width and height of the image in pixels.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown when <c>gdalinfo</c> output does not contain a parseable <c>Size is W, H</c> line.
     /// </exception>
-    (int W, int H) GetJpgSize(string jpgPath);
+    (int W, int H) GetRasterSize(string rasterPath);
 }

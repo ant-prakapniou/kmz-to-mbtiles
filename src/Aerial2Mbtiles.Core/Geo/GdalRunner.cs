@@ -77,11 +77,11 @@ public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
 
     /// <inheritdoc/>
     /// <remarks>
-    /// The image dimensions are extracted from the <c>Size is W, H</c> line printed by
+    /// The raster dimensions are extracted from the <c>Size is W, H</c> line printed by
     /// <c>gdalinfo</c>. If that line is missing, the method throws rather than returning
     /// a sentinel value, because a missing size indicates a corrupted or unsupported input.
     /// </remarks>
-    public (int W, int H) GetJpgSize(string jpgPath)
+    public (int W, int H) GetRasterSize(string rasterPath)
     {
         var psi = new ProcessStartInfo
         {
@@ -91,7 +91,7 @@ public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
         };
-        psi.ArgumentList.Add(jpgPath);
+        psi.ArgumentList.Add(rasterPath);
 
         using var p = Process.Start(psi)!;
         var output = p.StandardOutput.ReadToEnd();
@@ -99,7 +99,7 @@ public sealed class GdalRunner(IProgressReporter reporter) : IGdalRunner
 
         var m = Regex.Match(output, @"Size is (\d+),\s*(\d+)");
         if (!m.Success)
-            throw new InvalidOperationException("failed to determine jpg size");
+            throw new InvalidOperationException("failed to determine raster size");
 
         return (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
                 int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture));

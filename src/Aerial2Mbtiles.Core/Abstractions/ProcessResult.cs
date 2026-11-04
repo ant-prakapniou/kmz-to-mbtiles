@@ -1,7 +1,24 @@
 ﻿namespace Aerial2Mbtiles.Core.Abstractions;
 
 /// <summary>
-/// Result of processing a single KMZ file through the conversion pipeline.
+/// Kind of input supplied to the pipeline.
+/// </summary>
+public enum InputKind
+{
+    /// <summary>
+    /// A single KMZ archive containing a KML document and one raster asset.
+    /// </summary>
+    Kmz,
+
+    /// <summary>
+    /// A pair of files: one raster image and one KML document lying side by side.
+    /// </summary>
+    Pair,
+}
+
+/// <summary>
+/// Result of processing a single input (KMZ archive or raster+KML pair) through
+/// the conversion pipeline.
 /// </summary>
 /// <remarks>
 /// A single instance describes both successful and failed runs. Callers should
@@ -17,9 +34,21 @@ public sealed record ProcessResult
     public required bool Success { get; init; }
 
     /// <summary>
-    /// Absolute path to the input KMZ file that was processed.
+    /// Absolute path to the input that was processed: either the KMZ archive
+    /// or the raster image of a pair.
     /// </summary>
-    public required string KmzPath { get; init; }
+    public required string InputPath { get; init; }
+
+    /// <summary>
+    /// Kind of input that was processed.
+    /// </summary>
+    public required InputKind InputKind { get; init; }
+
+    /// <summary>
+    /// Processing mode requested for this run: <c>1</c> for normalization only,
+    /// <c>2</c> for normalization plus MBTiles conversion.
+    /// </summary>
+    public required int Mode { get; init; }
 
     /// <summary>
     /// Error message describing why processing failed.
@@ -30,28 +59,56 @@ public sealed record ProcessResult
     public string? ErrorMessage { get; init; }
 
     /// <summary>
-    /// Absolute path to the generated MBTiles file.
+    /// Normalized master name used for all output files.
     /// </summary>
     /// <remarks>
     /// Populated only when <see cref="Success"/> is <see langword="true"/>.
     /// </remarks>
-    public string? MbtilesPath { get; init; }
+    public string? Master { get; init; }
 
     /// <summary>
-    /// Absolute path to the normalized KMZ file written to the <c>normalized</c> directory.
+    /// Absolute path to the output directory <c>{master}</c> that holds all
+    /// artifacts produced by this run.
     /// </summary>
     /// <remarks>
-    /// Populated only when <see cref="Success"/> is <see langword="true"/> and the input
-    /// required normalization. If the input KMZ already carried the normalized master name,
-    /// no file is written and this property is <see langword="null"/>.
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>.
     /// </remarks>
-    public string? NormalizedKmzPath { get; init; }
+    public string? OutputDir { get; init; }
+
+    /// <summary>
+    /// Absolute path to the normalized raster file <c>{master}{ext}</c>
+    /// inside <see cref="OutputDir"/>.
+    /// </summary>
+    /// <remarks>
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>.
+    /// </remarks>
+    public string? RasterPath { get; init; }
+
+    /// <summary>
+    /// Absolute path to the normalized KML file <c>{master}.kml</c>
+    /// inside <see cref="OutputDir"/>.
+    /// </summary>
+    /// <remarks>
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>.
+    /// </remarks>
+    public string? KmlPath { get; init; }
+
+    /// <summary>
+    /// Absolute path to the generated MBTiles file <c>{master}.mbtiles</c>
+    /// inside <see cref="OutputDir"/>.
+    /// </summary>
+    /// <remarks>
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>
+    /// and <see cref="Mode"/> is <c>2</c>. Always <see langword="null"/> in mode 1.
+    /// </remarks>
+    public string? MbtilesPath { get; init; }
 
     /// <summary>
     /// Size of the generated MBTiles file, in bytes.
     /// </summary>
     /// <remarks>
-    /// Populated only when <see cref="Success"/> is <see langword="true"/>.
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>
+    /// and <see cref="Mode"/> is <c>2</c>.
     /// </remarks>
     public long SizeBytes { get; init; }
 
@@ -59,9 +116,10 @@ public sealed record ProcessResult
     /// Total number of tiles in the generated MBTiles file, across all zoom levels.
     /// </summary>
     /// <remarks>
-    /// Populated only when <see cref="Success"/> is <see langword="true"/>.
-    /// A value of 0 indicates that the statistics could not be read; this is
-    /// treated as non-fatal and does not affect <see cref="Success"/>.
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>
+    /// and <see cref="Mode"/> is <c>2</c>. A value of 0 indicates that the
+    /// statistics could not be read; this is treated as non-fatal and does not
+    /// affect <see cref="Success"/>.
     /// </remarks>
     public long TileCount { get; init; }
 
@@ -69,8 +127,8 @@ public sealed record ProcessResult
     /// Minimum zoom level present in the generated MBTiles file.
     /// </summary>
     /// <remarks>
-    /// Populated only when <see cref="Success"/> is <see langword="true"/>
-    /// and <see cref="TileCount"/> is greater than 0.
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>,
+    /// <see cref="Mode"/> is <c>2</c>, and <see cref="TileCount"/> is greater than 0.
     /// </remarks>
     public int MinZoom { get; init; }
 
@@ -78,13 +136,13 @@ public sealed record ProcessResult
     /// Maximum zoom level present in the generated MBTiles file.
     /// </summary>
     /// <remarks>
-    /// Populated only when <see cref="Success"/> is <see langword="true"/>
-    /// and <see cref="TileCount"/> is greater than 0.
+    /// Populated only when <see cref="Success"/> is <see langword="true"/>,
+    /// <see cref="Mode"/> is <c>2</c>, and <see cref="TileCount"/> is greater than 0.
     /// </remarks>
     public int MaxZoom { get; init; }
 
     /// <summary>
-    /// Wall-clock time spent processing the input KMZ file.
+    /// Wall-clock time spent processing the input.
     /// </summary>
     public TimeSpan Elapsed { get; init; }
 }

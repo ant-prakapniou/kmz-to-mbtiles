@@ -1,0 +1,104 @@
+# Aerial2Mbtiles
+
+Converts georeferenced archival aerial photographs into MBTiles ready for use in mobile map viewers, while normalizing file names for long-term archiving.
+
+The project was created to process a library of German archival aerial photographs from World War II. Each photograph is manually georeferenced in Google Earth and saved either as a KMZ archive or as a raster + KML pair; this tool automates the rest of the pipeline.
+
+## What it does
+
+For each input (a KMZ archive or a raster + KML pair), the pipeline:
+
+1. Resolves the input into a concrete raster + KML pair. For a KMZ archive, the archive is unpacked into a temporary directory using the same entry-name encoding as Google Earth (code page 437 with UTF-8 override).
+
+2. Shows the four current names found in the input: the raster file name, the KML file name, the KML `<name>`, and the KML <href>.
+
+3. Asks for a normalized master name (pre-filled with the raster file name; Enter accepts the suggestion) and for a processing mode (1 or 2).
+
+4. Normalizes the pair into a {master} directory: the raster is copied under {master}{ext}, the KML is patched so that `<name>` is {master} and <href> is {master}{ext}, and the binding is rewritten as gx:LatLonQuad (from either gx:LatLonQuad or LatLonBox with optional rotation, computed on the WGS84 ellipsoid).
+
+5. In mode 2, additionally creates a GCP-tagged GeoTIFF in EPSG:4326 from the four corners, reprojects to EPSG:3857, converts to MBTiles with PNG tiles, and builds overviews for smooth zooming on mobile devices.
+
+KMZ archives are no longer written to the output: the normalized pair is the canonical archived form.
+
+## Requirements
+
+Windows x64
+
+- GDAL command-line tools on PATH (gdal_translate, gdalwarp, gdaladdo, gdalinfo)
+
+Python 3 (only for the verification script)
+
+The published executable is self-contained and does not require a .NET runtime on the target machine.
+
+## Usage
+
+Drag and drop onto Aerial2Mbtiles.bat:
+
+one .kmz file, or
+
+a raster image and a .kml file (in any order).
+
+Or run the executable directly:
+    Or run the executable directly:
+
+Aerial2Mbtiles.exe "path\to\file.kmz"
+Aerial2Mbtiles.exe "path\to\image.tif" "path\to\overlay.kml"
+, the tool prints the four current names, asks for the master name (Enter accepts the suggested value) and for the processing mode (Enter accepts mode 2).
+
+## Modes
+
+- Mode 1 — normalize only. Produces a {master} directory with the normalized pair. No MBTiles.
+
+- Mode 2 — normalize + MBTiles. Produces the same {master} directory and additionally writes {master}.mbtiles inside it.
+
+## Output
+
+Results are written next to the input, inside a {master} directory:
+
+{master}/
+├── {master}{ext} — normalized raster (copied byte-for-byte)
+├── {master}.kml — KML with synchronized `<name>`, <href> and binding
+└── {master}.mbtiles — mode 2 only
+
+## Supported inputs
+
+- KMZ produced by Google Earth: doc.kml with a <GroundOverlay>, and a files/ folder with exactly one raster.
+
+Pair: a raster image and a .kml file. Raster extensions recognized: .jpg, .jpeg, .tif, .tiff, .png.
+
+## Supported binding styles
+
+gx:LatLonQuad — four corner coordinates.
+
+LatLonBox with optional rotation — converted to four corners on the WGS84 ellipsoid using Vincenty's formulae. Rotation is applied in the local metric plane, then projected back to geographic coordinates.
+
+On output, the binding is always written as gx:LatLonQuad.
+
+## Verification
+
+compare_mbtiles.py compares two MBTiles files by the SHA-256 hashes of their tiles and reports any difference, per zoom level.
+
+Drag and drop two .mbtiles files onto compare_mbtiles.bat, or run from a console:
+    or run from a console:
+
+compare_mbtiles.bat reference.mbtiles output.mbtiles
+ and is intended as a manual verification tool, not as part of the conversion pipeline.
+
+## Published files
+
+A release publish produces a single zip archive (Aerial2Mbtiles-<version>-win-x64.zip) containing five files:
+    containing five files:
+
+Aerial2Mbtiles.exe — self-contained executable (Windows x64)
+Aerial2Mbtiles.bat — drag-and-drop launcher for conversion
+compare_mbtiles.py — MBTiles verification script
+compare_mbtiles.bat — drag-and-drop launcher for comparison
+e_sqlite3.dll — native SQLite library (required at runtime)
+
+src/
+├── Aerial2Mbtiles.Cli/ — executable, console UI, batch launcher, verification script
+└── Aerial2Mbtiles.Core/ — conversion pipeline, GDAL wrapper, naming, KML/ZIP helpers
+
+## License
+
+MIT — see LICENSE.

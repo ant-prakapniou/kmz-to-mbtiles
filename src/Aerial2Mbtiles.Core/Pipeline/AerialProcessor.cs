@@ -1,28 +1,21 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using Aerial2Mbtiles.Core.Abstractions;
-using Aerial2Mbtiles.Core.Kmz;
+using Aerial2Mbtiles.Core.Helpers;
 using Aerial2Mbtiles.Core.Mbtiles;
-using Aerial2Mbtiles.Core.Naming;
 
 namespace Aerial2Mbtiles.Core.Pipeline;
 
 /// <summary>
-/// Orchestrates the full KMZ-to-MBTiles conversion pipeline for a single input file.
+/// Orchestrates the normalization (and optional MBTiles conversion) of a single
+/// raster + KML pair that has already been resolved by the caller.
 /// </summary>
 /// <param name="gdal">Runner used to invoke GDAL command-line tools.</param>
 /// <param name="reporter">Progress reporter used to surface pipeline status and results.</param>
 /// <remarks>
-/// The pipeline performs the following stages:
-/// <list type="number">
-///   <item><description>Extract the KMZ archive into a temporary directory.</description></item>
-///   <item><description>Derive a normalized master name from the embedded JPG.</description></item>
-///   <item><description>Patch the KML <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c>, rename the embedded JPG to the normalized master name, and write a normalized KMZ.</description></item>
-///   <item><description>Create a GCP-tagged TIFF in EPSG:4326.</description></item>
-///   <item><description>Reproject to EPSG:3857 and convert to MBTiles with overviews.</description></item>
-/// </list>
-/// Output is written next to the input KMZ, under <c>normalized</c> and <c>mbtiles</c>
-/// subdirectories of <c>baseDir</c>.
+/// This processor never unpacks archives and never guesses input layout. It expects
+/// a concrete raster file and a concrete KML file, both readable. Any unpacking of
+/// a KMZ archive into such a pair is the caller's responsibility.
 /// </remarks>
 public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter)
 {
@@ -30,121 +23,93 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
     private readonly IProgressReporter _reporter = reporter;
 
     /// <summary>
-    /// Processes a single KMZ file and produces the corresponding MBTiles output.
+    /// Normalizes a raster + KML pair into a <c>{master}</c> directory and, in mode 2,
+    /// also produces MBTiles.
     /// </summary>
-    /// <param name="kmzPath">Path to the input KMZ file. Converted to an absolute path internally.</param>
-    /// <param name="baseDir">
-    /// Directory under which <c>normalized</c> and <c>mbtiles</c> subdirectories are created.
-    /// Typically the directory containing the input KMZ.
-    /// </param>
-    /// <returns>
-    /// A <see cref="ProcessResult"/> describing the outcome. On success, output paths and
-    /// metrics are populated. On failure, <see cref="ProcessResult.ErrorMessage"/> contains
-    /// the reason.
-    /// </returns>
-    /// <remarks>
-    /// The method never throws for expected failures such as a missing input file or a
-    /// malformed KMZ. All such cases are reported through the returned result and the
-    /// progress reporter. The temporary working directory is always removed, even on failure.
-    /// </remarks>
-    public ProcessResult Process(string kmzPath, string baseDir)
+    /// <param name="inputPath">Original input path (KMZ or raster), used only for reporting.</param>
+    /// <param name="inputKind">Kind of the original input, used only for reporting.</param>
+    /// <param name="rasterPath">Absolute path to the source raster.</param>
+    /// <param name="kmlPath">Absolute path to the source KML.</param>
+    /// <param name="master">Normalized master name chosen by the user, without extension.</param>
+    /// <param name="mode">Processing mode: <c>1</c> for normalization only, <c>2</c> to also produce MBTiles.</param>
+    /// <param name="baseDir">Directory under which the <c>{master}</c> output directory is created.</param>
+    /// <returns>A <see cref="ProcessResult"/> describing the outcome.</returns>
+    public ProcessResult Process(
+        string inputPath,
+        InputKind inputKind,
+        string rasterPath,
+        string kmlPath,
+        string master,
+        int mode,
+        string baseDir)
     {
-        kmzPath = Path.GetFullPath(kmzPath);
+        if (mode is not (1 or 2))
+            return Fail(inputPath, inputKind, mode, "mode must be 1 or 2");
 
-        if (!File.Exists(kmzPath))
-        {
-            _reporter.Warn($"SKIP not a file: {kmzPath}");
-            return new ProcessResult
-            {
-                Success = false,
-                KmzPath = kmzPath,
-                ErrorMessage = "not a file",
-            };
-        }
-        if (!kmzPath.EndsWith(".kmz", StringComparison.OrdinalIgnoreCase))
-        {
-            _reporter.Warn($"SKIP not .kmz: {kmzPath}");
-            return new ProcessResult
-            {
-                Success = false,
-                KmzPath = kmzPath,
-                ErrorMessage = "not .kmz",
-            };
-        }
+        if (!File.Exists(rasterPath))
+            return Fail(inputPath, inputKind, mode, $"raster not found: {rasterPath}");
+        if (!File.Exists(kmlPath))
+            return Fail(inputPath, inputKind, mode, $"KML not found: {kmlPath}");
 
-        var normDir = Path.Combine(baseDir, "normalized");
-        var mbtilesDir = Path.Combine(baseDir, "mbtiles");
+        var displayName = Path.GetFileName(inputPath);
+        _reporter.Header($"Processing: {displayName}");
 
-        _reporter.Header($"Processing: {Path.GetFileName(kmzPath)}");
-
-        var tmp = Path.Combine(Path.GetTempPath(), "kmz2mbt_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tmp);
+        var outputDir = Path.Combine(baseDir, master);
+        if (Directory.Exists(outputDir))
+            return Fail(inputPath, inputKind, mode, $"output directory already exists: {outputDir}");
 
         var sw = Stopwatch.StartNew();
+        string? tmp = null;
 
         try
         {
-            _reporter.Step(1, 5, "Extracting KMZ...");
-            ZipHelper.Extract(kmzPath, tmp);
+            var rasterExt = Path.GetExtension(rasterPath);
+            _reporter.Step(1, mode == 2 ? 3 : 2, $"Master name: {master}");
 
-            var filesDir = Path.Combine(tmp, "files");
-            if (!Directory.Exists(filesDir))
-                throw new InvalidOperationException("no files/ folder");
+            // ----- Parse binding from the source KML before touching output -----
+            _reporter.Step(2, mode == 2 ? 3 : 2, "Normalizing...");
+            var corners = KmlHelper.ParseBinding(kmlPath);
 
-            var jpgs = Directory.GetFiles(filesDir, "*.jpg");
-            if (jpgs.Length != 1)
-                throw new InvalidOperationException($"expected 1 jpg in files/, found {jpgs.Length}");
+            Directory.CreateDirectory(outputDir);
+            var outRaster = Path.Combine(outputDir, master + rasterExt);
+            var outKml = Path.Combine(outputDir, master + ".kml");
 
-            var jpg = jpgs[0];
-            var masterRaw = Path.GetFileNameWithoutExtension(jpg);
-            var master = NameHelper.Normalize(masterRaw);
-            _reporter.Step(2, 5, $"Master name: {masterRaw} -> {master}");
+            File.Copy(rasterPath, outRaster, overwrite: false);
+            File.Copy(kmlPath, outKml, overwrite: false);
+            KmlHelper.PatchKml(outKml, master, rasterExt, corners);
 
-            _reporter.Step(3, 5, "Normalizing...");
-            var kmlPath = Path.Combine(tmp, "doc.kml");
-            if (!File.Exists(kmlPath))
-                throw new InvalidOperationException("no doc.kml");
-
-            KmlHelper.PatchNameAndHref(kmlPath, master);
-
-            // Keep the JPG file name in sync with the normalized master name that was
-            // written into the KML <name>/<href> and into the output KMZ file name.
-            var newJpgPath = Path.Combine(filesDir, master + Path.GetExtension(jpg));
-            if (!string.Equals(jpg, newJpgPath, StringComparison.Ordinal))
+            // ----- Mode 1 stops here -----
+            if (mode == 1)
             {
-                if (string.Equals(jpg, newJpgPath, StringComparison.OrdinalIgnoreCase))
+                sw.Stop();
+                _reporter.Success($"normalized -> {master}/");
+                _reporter.Path("raster", outRaster);
+                _reporter.Path("kml", outKml);
+                _reporter.Detail($"time  : {FormatElapsed(sw.Elapsed)}");
+
+                return new ProcessResult
                 {
-                    // Case-only rename on a case-insensitive file system: go through a temp name.
-                    var tmpName = jpg + ".renaming";
-                    File.Move(jpg, tmpName);
-                    File.Move(tmpName, newJpgPath);
-                }
-                else
-                {
-                    File.Move(jpg, newJpgPath);
-                }
-                jpg = newJpgPath;
+                    Success = true,
+                    InputPath = inputPath,
+                    InputKind = inputKind,
+                    Mode = mode,
+                    Master = master,
+                    OutputDir = outputDir,
+                    RasterPath = outRaster,
+                    KmlPath = outKml,
+                    Elapsed = sw.Elapsed,
+                };
             }
 
-            var kmzBase = Path.GetFileNameWithoutExtension(kmzPath);
-            string? normalizedKmzPath = null;
-            if (kmzBase == master)
-            {
-                _reporter.Info("already normalized, skipping");
-            }
-            else
-            {
-                Directory.CreateDirectory(normDir);
-                normalizedKmzPath = Path.Combine(normDir, master + ".kmz");
-                ZipHelper.Build(tmp, normalizedKmzPath);
-                _reporter.Warn($"created normalized/{master}.kmz");
-            }
+            // ----- Mode 2: GDAL chain -----
+            _reporter.Step(3, 3, "Converting to MBTiles...");
 
-            _reporter.Step(4, 5, "Creating GCP-TIFF...");
-            var (W, H) = _gdal.GetJpgSize(jpg);
-            var corners = KmlHelper.ParseLatLonQuad(kmlPath);
+            tmp = Path.Combine(Path.GetTempPath(), "aerial2mbt_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tmp);
 
-            // Corner order in the KML document is south-west, south-east, north-east, north-west.
+            var (W, H) = _gdal.GetRasterSize(outRaster);
+
+            // Corner order in the KML is SW, SE, NE, NW.
             // GCPs are assigned clockwise starting from the top-left pixel of the raster.
             var gcp = new (int px, int py, double lon, double lat)[]
             {
@@ -165,13 +130,12 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
                 args.Add(lon.ToString("R", CultureInfo.InvariantCulture));
                 args.Add(lat.ToString("R", CultureInfo.InvariantCulture));
             }
-            args.Add(jpg);
+            args.Add(outRaster);
             args.Add(tifGcp);
 
             if (!_gdal.Run("gdal_translate", "gdal_translate (GCP-TIFF, 4 points)", args.ToArray()))
                 throw new InvalidOperationException("gdal_translate (GCP-TIFF) failed");
 
-            _reporter.Step(5, 5, "Converting to MBTiles...");
             var tif3857 = Path.Combine(tmp, master + "_temp_3857.tif");
 
             if (!_gdal.Run("gdalwarp", "gdalwarp (EPSG:3857, cubic)",
@@ -180,8 +144,7 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
                     tifGcp, tif3857))
                 throw new InvalidOperationException("gdalwarp failed");
 
-            Directory.CreateDirectory(mbtilesDir);
-            var outMbtiles = Path.Combine(mbtilesDir, master + ".mbtiles");
+            var outMbtiles = Path.Combine(outputDir, master + ".mbtiles");
 
             if (!_gdal.Run("gdal_translate", "gdal_translate (MBTILES, PNG)",
                     "-of", "MBTILES", "-co", "TILE_FORMAT=PNG",
@@ -208,9 +171,9 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
                 // Reading statistics is optional; failure must not fail the conversion.
             }
 
-            _reporter.Success(Path.GetFileName(outMbtiles));
-            if (normalizedKmzPath != null)
-                _reporter.Path("normalized", normalizedKmzPath);
+            _reporter.Success($"normalized + mbtiles -> {master}/");
+            _reporter.Path("raster", outRaster);
+            _reporter.Path("kml", outKml);
             _reporter.Path("mbtiles", outMbtiles);
             _reporter.Detail($"size  : {sizeBytes / 1048576.0:F1} MB");
             if (tileCount > 0)
@@ -220,9 +183,14 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
             return new ProcessResult
             {
                 Success = true,
-                KmzPath = kmzPath,
+                InputPath = inputPath,
+                InputKind = inputKind,
+                Mode = mode,
+                Master = master,
+                OutputDir = outputDir,
+                RasterPath = outRaster,
+                KmlPath = outKml,
                 MbtilesPath = outMbtiles,
-                NormalizedKmzPath = normalizedKmzPath,
                 SizeBytes = sizeBytes,
                 TileCount = tileCount,
                 MinZoom = minZ,
@@ -233,29 +201,31 @@ public sealed class AerialProcessor(IGdalRunner gdal, IProgressReporter reporter
         catch (Exception ex)
         {
             sw.Stop();
-            _reporter.Error($"{Path.GetFileName(kmzPath)}: {ex.Message}");
-            return new ProcessResult
-            {
-                Success = false,
-                KmzPath = kmzPath,
-                ErrorMessage = ex.Message,
-                Elapsed = sw.Elapsed,
-            };
+            _reporter.Error($"{displayName}: {ex.Message}");
+            return Fail(inputPath, inputKind, mode, ex.Message, sw.Elapsed);
         }
         finally
         {
-            try { Directory.Delete(tmp, true); } catch { }
+            if (tmp is not null)
+                try { Directory.Delete(tmp, true); } catch { }
         }
     }
 
-    /// <summary>
-    /// Formats a duration for display in the pipeline summary.
-    /// </summary>
-    /// <param name="t">Duration to format.</param>
-    /// <returns>
-    /// A string in the form <c>N min M sec</c> when the duration is at least one minute,
-    /// otherwise <c>X.Y sec</c>.
-    /// </returns>
+    private ProcessResult Fail(
+        string inputPath, InputKind kind, int mode, string message, TimeSpan elapsed = default)
+    {
+        _reporter.Warn($"SKIP: {message}");
+        return new ProcessResult
+        {
+            Success = false,
+            InputPath = inputPath,
+            InputKind = kind,
+            Mode = mode,
+            ErrorMessage = message,
+            Elapsed = elapsed,
+        };
+    }
+
     private static string FormatElapsed(TimeSpan t)
     {
         if (t.TotalMinutes >= 1)

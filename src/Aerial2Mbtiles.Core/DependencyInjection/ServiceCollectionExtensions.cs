@@ -11,7 +11,7 @@ namespace Aerial2Mbtiles.Core.DependencyInjection;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the Core services required to run the KMZ-to-MBTiles conversion pipeline.
+    /// Adds the Core services required to run the conversion pipeline.
     /// </summary>
     /// <param name="services">The service collection to add registrations to.</param>
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
