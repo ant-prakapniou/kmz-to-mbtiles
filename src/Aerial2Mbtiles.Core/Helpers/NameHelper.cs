@@ -1,17 +1,23 @@
-﻿namespace Aerial2Mbtiles.Core.Helpers;
+﻿using System.Text.RegularExpressions;
+using NickBuhro.Translit;
+
+namespace Aerial2Mbtiles.Core.Helpers;
 
 /// <summary>
-/// Produces safe file names from raw master names taken from archived aerial photographs.
+/// Produces safe, normalized file names from raw master names taken from archived
+/// aerial photographs.
 /// </summary>
 /// <remarks>
 /// Master names originate from the archive and are considered the single source of truth.
-/// They may contain spaces and typographic symbols that are unsafe or inconvenient as
-/// file names. This class sanitizes such names so the same value can be used for the
-/// raster file, the KML file, the KML <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c> elements,
-/// and the output MBTiles file.
+/// They may contain Cyrillic characters, spaces and typographic symbols that are unsafe or
+/// inconvenient as file names. This class transliterates Cyrillic to Latin and sanitizes the
+/// result so the same name can be used for the raster file, the KML file, the KML
+/// <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c> elements, and the output MBTiles file.
 /// </remarks>
 public static class NameHelper
 {
+    private static readonly Regex CyrillicRegex = new(@"\p{IsCyrillic}", RegexOptions.Compiled);
+
     /// <summary>
     /// Characters that are technically valid in Windows file names but may cause problems
     /// in Google Drive, cloud storage or older file systems. Replaced with <c>_</c>.
@@ -22,21 +28,43 @@ public static class NameHelper
     };
 
     /// <summary>
+    /// Determines whether the string contains at least one Cyrillic character.
+    /// </summary>
+    public static bool ContainsCyrillic(string s) => CyrillicRegex.IsMatch(s);
+
+    /// <summary>
+    /// Normalizes a master name: transliterates Cyrillic to Latin, then sanitizes the result.
+    /// </summary>
+    /// <param name="master">Raw master name.</param>
+    /// <returns>A name suitable for use as a file name and as a value in KML
+    /// <c>&lt;name&gt;</c> and <c>&lt;href&gt;</c> elements.</returns>
+    /// <remarks>
+    /// Transliteration follows GOST 7.79-2000 (ISO 9, system B) and is applied only when the
+    /// input contains Cyrillic characters. Sanitization is always applied, including for
+    /// already Latin names, to keep the output uniform.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// NameHelper.Normalize("222-55 Киселева буда выс 43.10.21");
+    /// // returns "222-55_Kiseleva_buda_vys_43.10.21"
+    /// </code>
+    /// </example>
+    public static string Normalize(string master)
+    {
+        var s = master;
+
+        if (ContainsCyrillic(s))
+        {
+            s = Transliteration.CyrillicToLatin(s, Language.Russian);
+        }
+
+        s = Sanitize(s);
+        return s;
+    }
+
+    /// <summary>
     /// Sanitizes a string so it can be used as a file name.
     /// </summary>
-    /// <param name="s">Input string.</param>
-    /// <returns>A file-name-safe version of the input.</returns>
-    /// <remarks>
-    /// The following transformations are applied, in order:
-    /// <list type="number">
-    ///   <item><description>Spaces are replaced with <c>_</c>.</description></item>
-    ///   <item><description>Quotes and backticks are removed.</description></item>
-    ///   <item><description>File-system invalid characters and a fixed set of typographic symbols are replaced with <c>_</c>.</description></item>
-    ///   <item><description>Consecutive underscores are collapsed into one.</description></item>
-    ///   <item><description>Trailing dots and spaces are trimmed.</description></item>
-    ///   <item><description>Names longer than 200 characters are truncated, leaving headroom for the file extension.</description></item>
-    /// </list>
-    /// </remarks>
     public static string Sanitize(string s)
     {
         // Spaces -> underscores

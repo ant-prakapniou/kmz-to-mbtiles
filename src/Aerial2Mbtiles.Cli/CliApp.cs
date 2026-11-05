@@ -44,12 +44,12 @@ public sealed class CliApp(AerialProcessor processor, IProgressReporter reporter
         _reporter.Detail("");
 
         // ----- Master name (pre-filled with the raster base name) -----
-        var suggested = NameHelper.Sanitize(rasterBase);
+        var suggested = NameHelper.Normalize(rasterBase);
 
         _reporter.Info($"Master name [{suggested}]. Press Enter to accept.");
         Console.Write("> ");
         var rawName = Console.ReadLine();
-        var master = NameHelper.Sanitize(
+        var master = NameHelper.Normalize(
             string.IsNullOrWhiteSpace(rawName) ? suggested : rawName.Trim());
 
         if (string.IsNullOrWhiteSpace(master))

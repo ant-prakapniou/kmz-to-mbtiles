@@ -12,7 +12,7 @@ For each input (a KMZ archive or a raster + KML pair), the pipeline:
 
 2. Shows the four current names found in the input: the raster file name, the KML file name, the KML `<name>`, and the KML `<href>`.
 
-3. Asks for a normalized master name (pre-filled with the raster file name; Enter accepts the suggestion) and for a processing mode (1 or 2).
+3. Asks for a normalized master name (pre-filled with the raster file name; Enter accepts the suggestion) and for a processing mode (1 or 2). If the entered name contains Cyrillic characters, they are transliterated to Latin using GOST 7.79-2000 (ISO 9, system B).
 
 4. Normalizes the pair into a `{master}` directory: the raster is copied under `{master}{ext}`, the KML is patched so that `<name>` is `{master}` and `<href>` is `{master}{ext}`, and the binding is rewritten as `gx:LatLonQuad` (from either `gx:LatLonQuad` or `LatLonBox` with optional rotation, computed on the WGS84 ellipsoid).
 
@@ -40,12 +40,23 @@ Or run the executable directly:
     Aerial2Mbtiles.exe "path\to\file.kmz"
     Aerial2Mbtiles.exe "path\to\image.tif" "path\to\overlay.kml"
 
-After the input is accepted, the tool prints the four current names, asks for the master name (Enter accepts the suggested value) and for the processing mode (Enter accepts mode 2).
+After the input is accepted, the tool prints the four current names, asks for the master name (Enter accepts the suggested value) and for the processing mode (Enter accepts mode 2). If the entered master name contains Cyrillic characters, they are automatically transliterated to Latin; the final name is shown in the pipeline log.
 
 ## Modes
 
 - Mode 1 — normalize only. Produces a `{master}` directory with the normalized pair. No MBTiles.
 - Mode 2 — normalize + MBTiles. Produces the same `{master}` directory and additionally writes `{master}.mbtiles` inside it.
+
+## Name normalization
+
+The master name is sanitized before use:
+
+- Cyrillic characters are transliterated to Latin using GOST 7.79-2000 (ISO 9, system B).
+- Spaces are replaced with `_`.
+- File-system invalid characters and a fixed set of typographic symbols are replaced with `_`.
+- Consecutive underscores are collapsed into one.
+- Trailing dots and spaces are trimmed.
+- Names longer than 200 characters are truncated, leaving headroom for the file extension.
 
 ## Output
 
